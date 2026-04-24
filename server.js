@@ -83,6 +83,24 @@ async function readStateFile() {
  * Routes
  * -------------------------------------------------------------------------- */
 
+// Load the HTML template for the landing page (keeps server.js clean)
+const TEMPLATE_FILE = path.join(process.cwd(), 'templates', 'index.html');
+let INDEX_HTML_TEMPLATE = null;
+try {
+    INDEX_HTML_TEMPLATE = await fs.readFile(TEMPLATE_FILE, 'utf8');
+} catch (e) {
+    console.warn('templates/index.html not found, falling back to minimal text response');
+}
+
+app.get('/', (req, res) => {
+    const now = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+    console.log(`APP GET '/' - ${now}`);
+    if (INDEX_HTML_TEMPLATE) {
+        return res.type('text/html').send(INDEX_HTML_TEMPLATE.replace('%%NOW%%', now));
+    }
+    res.send(`Ingest backend — OK (${now})`);
+});
+
 /**
  * POST /ingest
  * Endpoint used by the bot to push the current state. Protected by a shared
@@ -133,6 +151,39 @@ app.get('/events', (req, res) => {
     res.write('\n');
     clients.add(res);
     req.on('close', () => clients.delete(res));
+});
+
+/**
+ * GET /health
+ * Endpoint de vérification de l'état du service pour les load-balancers/monitoring.
+ * Retourne un JSON minimal incluant uptime, timestamp, nombre de clients SSE et
+ * si un fichier d'état est présent.
+ */
+app.get('/health', async (req, res) => {
+    try {
+        const raw = await readStateFile();
+        let lastStateReceived = null;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                lastStateReceived = parsed.__receivedAt ?? null;
+            } catch (e) {
+                // ignore parse errors
+            }
+        }
+
+        return res.json({
+            status: 'ok',
+            now: new Date().toISOString(),
+            uptime_seconds: Math.floor(process.uptime()),
+            sse_clients: clients.size,
+            has_state: !!raw,
+            last_state_received_at: lastStateReceived,
+        });
+    } catch (error) {
+        console.error('Health check failed', error);
+        return res.status(500).json({ status: 'error' });
+    }
 });
 
 /* --------------------------------------------------------------------------

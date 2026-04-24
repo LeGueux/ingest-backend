@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ingest Backend — API</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+            margin: 24px;
+            color: #222
+        }
+
+        h1 {
+            margin-bottom: 6px
+        }
+
+        pre {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 6px;
+            overflow: auto
+        }
+
+        a.endpoint {
+            display: inline-block;
+            margin: 6px 0
+        }
+
+        .muted {
+            color: #666;
+            font-size: 0.9em
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Ingest Backend — Endpoints</h1>
+    <p class="muted">Status: <strong>OK</strong> — %%NOW%%</p>
+
+    <h2>Endpoints</h2>
+    <ul>
+        <li><a class="endpoint" href="/state">GET /state</a> — retourne le JSON d'état courant (lecture).</li>
+        <li><span class="endpoint">POST /ingest</span> — endpoint pour le bot (header <code>x-bot-token</code> requis).
+            Exemple :</li>
+    </ul>
+    <pre>curl -X POST https://your-ingest.example/ingest \
+  -H "Content-Type: application/json" \
+  -H "x-bot-token: &lt;BOT_TO_UI_TOKEN&gt;" \
+  --data '{"updatedAt":"2026-04-24T12:00:00Z","some":"value"}'</pre>
+
+    <ul>
+        <li><a class="endpoint" href="/events">GET /events</a> — Server-Sent Events (SSE) pour recevoir les mises à jour
+            en temps réel.</li>
+        <li><a class="endpoint" href="/health">GET /health</a> — status et métriques basiques (uptime, clients SSE, last
+            state).</li>
+    </ul>
+</body>
+
+</html>
