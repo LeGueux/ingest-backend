@@ -12,7 +12,7 @@ import 'dotenv/config';
  * -------------------------------------------------------------------------- */
 const PORT = process.env.PORT || 3001;
 const BOT_TOKEN = process.env.BOT_TO_UI_TOKEN || '';
-const UI_ORIGIN = process.env.UI_ORIGIN || '*';
+const UI_ORIGIN = (process.env.UI_ORIGIN || '*').replace(/\/$/, '');
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
