@@ -8,7 +8,7 @@ Features
 - `GET /events` : Server-Sent Events (SSE) stream for realtime updates.
 
 Security notes
-- Store `BOT_TO_UI_TOKEN` as a secret in Koyeb/Railway.
+- Store `BOT_TO_UI_TOKEN` as a secret on server.
 - Restrict CORS to your UI domain using `UI_ORIGIN`.
 - Do not include sensitive secrets (wallet private keys) in the posted JSON.
 
