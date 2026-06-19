@@ -15,6 +15,7 @@ const BOT_TOKEN = process.env.BOT_TO_UI_TOKEN || '';
 const UI_ORIGIN = (process.env.UI_ORIGIN || '*').replace(/\/$/, '');
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
+const WEATHER_LINKS_FILE = path.join(DATA_DIR, 'weather-links.json');
 
 /* Ensure data directory exists on startup (atomic writes rely on it) */
 await fs.mkdir(DATA_DIR, { recursive: true });
@@ -79,6 +80,19 @@ async function readStateFile() {
     return await fs.readFile(STATE_FILE, 'utf8').catch(() => null);
 }
 
+/** Write weather links file atomically. */
+async function writeWeatherLinksAtomic(obj) {
+    const tmp = WEATHER_LINKS_FILE + '.tmp';
+    const str = JSON.stringify(obj, null, 2);
+    await fs.writeFile(tmp, str, { mode: 0o600 });
+    await fs.rename(tmp, WEATHER_LINKS_FILE);
+}
+
+/** Read weather links file (returns null if none). */
+async function readWeatherLinksFile() {
+    return await fs.readFile(WEATHER_LINKS_FILE, 'utf8').catch(() => null);
+}
+
 /* --------------------------------------------------------------------------
  * Routes
  * -------------------------------------------------------------------------- */
@@ -112,6 +126,17 @@ app.post('/ingest', checkBotToken, async (req, res) => {
         const payload = req.body || {};
         payload.__receivedAt = new Date().toISOString();
         await writeStateAtomic(payload);
+        
+        // If the payload contains weather links, save them separately
+        if (Array.isArray(payload.weatherLinks)) {
+            const weatherLinksPayload = {
+                type: 'weather-links',
+                airports: payload.weatherLinks,
+                updatedAt: new Date().toISOString()
+            };
+            await writeWeatherLinksAtomic(weatherLinksPayload);
+        }
+        
         broadcast(payload);
         res.status(204).end();
     } catch (error) {
@@ -151,6 +176,25 @@ app.get('/events', (req, res) => {
     res.write('\n');
     clients.add(res);
     req.on('close', () => clients.delete(res));
+});
+
+/**
+ * GET /weather-links
+ * Returns the current weather links wiki by airport code.
+ * Used by the dashboard to display a centralized list of weather links.
+ */
+app.get('/weather-links', async (req, res) => {
+    try {
+        const txt = await readWeatherLinksFile();
+        if (!txt) {
+            return res.status(204).json({ type: 'weather-links', airports: [] });
+        }
+        res.setHeader('Cache-Control', 'no-store');
+        res.type('application/json').send(txt);
+    } catch (error) {
+        console.error('Read weather links failed', error);
+        res.status(500).json({ error: 'failed' });
+    }
 });
 
 /**
