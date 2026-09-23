@@ -27,6 +27,14 @@ Express backend ingest service for receiving bot state and feeding the dashboard
 - Keep CORS configurable via `UI_ORIGIN` and protect ingest with `x-bot-token`.
 - Maintain atomic writes to avoid partial state files.
 
+## Validation
+
+- Keep validation proportional to the change.
+- Prefer syntax checks on modified JavaScript files.
+- Do not start `npm start` or `npm run dev` solely for validation unless runtime behavior needs to be verified.
+- Do not add or run repository-wide checks that are not defined by this project.
+- Do not repeat a successful validation unless relevant code changed afterward.
+
 ## References
 
 - `ingest-backend/README.md`
