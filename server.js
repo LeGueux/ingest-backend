@@ -13,6 +13,8 @@ import 'dotenv/config';
 const PORT = process.env.PORT || 3001;
 const BOT_TOKEN = process.env.BOT_TO_UI_TOKEN || '';
 const UI_ORIGIN = (process.env.UI_ORIGIN || '*').replace(/\/$/, '');
+// Les instantanés météo et carnets de marché peuvent dépasser l'ancienne limite de 500 Ko.
+const INGEST_BODY_LIMIT = process.env.INGEST_BODY_LIMIT || '5mb';
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const WEATHER_LINKS_FILE = path.join(DATA_DIR, 'weather-links.json');
@@ -120,7 +122,7 @@ app.get('/', (req, res) => {
  */
 // Authentifier avant toute lecture du JSON et refuser les corps compressés :
 // le bot envoie du JSON brut, sans nécessiter de décodeur Brotli côté serveur.
-app.post('/ingest', checkBotToken, express.json({ limit: '500kb', inflate: false }), async (req, res) => {
+app.post('/ingest', checkBotToken, express.json({ limit: INGEST_BODY_LIMIT, inflate: false }), async (req, res) => {
     try {
         const payload = req.body || {};
         payload.__receivedAt = new Date().toISOString();
@@ -142,6 +144,19 @@ app.post('/ingest', checkBotToken, express.json({ limit: '500kb', inflate: false
         console.error('Ingest failed', error);
         res.status(500).json({ error: 'failed' });
     }
+});
+
+// Un refus du parseur intervient avant la route : expliquer la limite au bot sans exposer le corps reçu.
+app.use('/ingest', (error, req, res, next) => {
+    if (error.type !== 'entity.too.large') return next(error);
+    console.warn('Ingest payload rejected: body size limit exceeded', {
+        limitBytes: error.limit,
+        receivedBytes: error.length,
+    });
+    return res.status(413).json({
+        error: 'payload_too_large',
+        limitBytes: error.limit,
+    });
 });
 
 /**

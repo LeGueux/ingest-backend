@@ -18,7 +18,8 @@ Prototype Express backend to receive secure POSTs from the bot and push updates 
 
 - `POST /ingest`
   - Requires header `x-bot-token` matching `BOT_TO_UI_TOKEN`.
-  - Checks authentication before parsing JSON. Compressed request bodies are rejected with `415`; send plain `application/json` (maximum `500kb`).
+  - Checks authentication before parsing JSON. Compressed request bodies are rejected with `415`; send plain `application/json` (maximum `5mb` by default, configurable with `INGEST_BODY_LIMIT`).
+  - Oversized payloads return `413` with `{ error: 'payload_too_large', limitBytes }`; the previous saved state is preserved.
   - Saves posted JSON payload to `data/state.json` (atomic write).
   - Adds `__receivedAt` (ISO date) to saved payload.
   - Broadcasts payload to SSE subscribers (`/events`).
@@ -76,6 +77,13 @@ npm run dev
 - `BOT_TO_UI_TOKEN`: shared secret checked against `x-bot-token`.
 - `UI_ORIGIN`: allowed origin for browser clients.
 - `PORT`: HTTP port (default `3001`).
+- `INGEST_BODY_LIMIT`: maximum ingest JSON body size (default `5mb`). Weather snapshots and market order books can exceed the former `500kb` limit. If the reverse proxy also limits request bodies, configure it to allow at least the same size.
+
+## Missing or stale dashboard data
+
+`/state` and `/weather-links` are populated only after a successful bot `POST /ingest`. Check the bot's sync status: `413` means the payload exceeds a body size limit, `401` indicates a missing or mismatched token. Redeploy after changing `INGEST_BODY_LIMIT`, then wait for the next successful dust report to repopulate both endpoints.
+
+The JSON files live in `data/` under the service working directory (`/data` with the supplied Dockerfile). Mount persistent storage there to retain them across container replacements. Without this volume, a new container returns `204` until the bot sends another state. `/health` exposes `has_state` and `last_state_received_at` to distinguish an empty backend from stale data.
 
 ## Example bot POST (curl)
 
