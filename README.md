@@ -18,6 +18,7 @@ Prototype Express backend to receive secure POSTs from the bot and push updates 
 
 - `POST /ingest`
   - Requires header `x-bot-token` matching `BOT_TO_UI_TOKEN`.
+  - Checks authentication before parsing JSON. Compressed request bodies are rejected with `415`; send plain `application/json` (maximum `500kb`).
   - Saves posted JSON payload to `data/state.json` (atomic write).
   - Adds `__receivedAt` (ISO date) to saved payload.
   - Broadcasts payload to SSE subscribers (`/events`).
@@ -48,7 +49,12 @@ Prototype Express backend to receive secure POSTs from the bot and push updates 
 
 ## Requirements
 
-- Node.js `>=24.0.0`
+- Node.js 24 LTS, version `24.22.1` or later within the 24.x line (`.nvmrc` pins the development version). npm rejects incompatible Node versions.
+- npm `12.2.1` or later within 12.x. Dependency install scripts remain blocked by default; this service does not require native dependency builds.
+
+Development reloads use Node's built-in `--watch` mode, without nodemon or its file-watching dependency tree.
+
+The [21 October 2026 Node.js security release](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) requires updating the runtime itself. Rebuild Docker with `docker build --pull -t ingest-backend .`, redeploy the container, and verify `node --version` inside it. Updating Node locally does not update existing containers. Rejecting compressed ingest requests is additional protection, not a replacement for the runtime update.
 
 ## Run locally
 
@@ -56,7 +62,7 @@ Prototype Express backend to receive secure POSTs from the bot and push updates 
 2. Install dependencies:
 
 ```bash
-npm install --ignore-scripts
+npm ci
 ```
 
 3. Start server:

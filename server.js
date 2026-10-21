@@ -28,9 +28,6 @@ const app = express();
 // Basic security headers
 app.use(helmet());
 
-// Body parser with reasonable size limit for state payloads
-app.use(express.json({ limit: '500kb' }));
-
 // HTTP access logs
 app.use(morgan('combined'));
 
@@ -121,7 +118,9 @@ app.get('/', (req, res) => {
  * secret header `x-bot-token`. The posted body is saved atomically and
  * immediately broadcast to any SSE subscribers.
  */
-app.post('/ingest', checkBotToken, async (req, res) => {
+// Authentifier avant toute lecture du JSON et refuser les corps compressés :
+// le bot envoie du JSON brut, sans nécessiter de décodeur Brotli côté serveur.
+app.post('/ingest', checkBotToken, express.json({ limit: '500kb', inflate: false }), async (req, res) => {
     try {
         const payload = req.body || {};
         payload.__receivedAt = new Date().toISOString();
